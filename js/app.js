@@ -1,6 +1,6 @@
 /**
  * CRAVE Meal Prep Co. — Promo Landing Page
- * 10 Meals for $9.99 Each — Meal Selection & Checkout
+ * 10 Meals for $9.99 Each — Meal Selection & Shopify Checkout
  */
 
 (function () {
@@ -12,6 +12,7 @@
   // ─── STATE ──────────────────────────────────────────────────
   var cart = {};
   var totalSelected = 0;
+  var shopifyReady = false;
 
   // ─── DOM REFS ───────────────────────────────────────────────
   var mealsGrid = document.getElementById("mealsGrid");
@@ -46,6 +47,24 @@
     setMinDeliveryDate();
     animateOnScroll();
     startCountdown();
+    initShopify();
+  }
+
+  // ─── SHOPIFY INIT ──────────────────────────────────────────
+  function initShopify() {
+    if (typeof ShopifyCheckout !== "undefined" && ShopifyCheckout.isConfigured()) {
+      ShopifyCheckout.init().then(function (ready) {
+        shopifyReady = ready;
+        if (ready) {
+          // Re-render meals to pick up any images from Shopify
+          var activeFilter = document.querySelector(".filter-btn.active");
+          var category = activeFilter ? activeFilter.getAttribute("data-category") : "all";
+          var filtered = category === "all" ? MEALS : MEALS.filter(function (m) { return m.category === category; });
+          renderMeals(filtered);
+          console.log("[CRAVE] Shopify connected — real checkout enabled");
+        }
+      });
+    }
   }
 
   // ─── RENDER MEALS ───────────────────────────────────────────
@@ -69,19 +88,31 @@
       // Macros in compact format matching real site
       var macrosText = meal.calories + " cal | " + meal.protein + "p | " + meal.carbs + "c | " + meal.fat + "f";
 
+      // Image: use real photo if available, otherwise show placeholder
+      var imageHtml;
+      if (meal.image) {
+        imageHtml =
+          '<div class="meal-card-image has-photo">' +
+            '<img src="' + meal.image + '" alt="' + meal.name + '" loading="lazy">' +
+          '</div>';
+      } else {
+        imageHtml =
+          '<div class="meal-card-image">' +
+            '<span class="meal-plate-icon">' +
+              '<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.15">' +
+                '<circle cx="12" cy="12" r="10"/>' +
+                '<circle cx="12" cy="12" r="6"/>' +
+              '</svg>' +
+            '</span>' +
+          '</div>';
+      }
+
       var card = document.createElement("div");
       card.className = "meal-card" + (qty > 0 ? " selected" : "");
       card.setAttribute("data-category", meal.category);
       card.innerHTML =
         (badgesHtml ? '<div class="meal-badges">' + badgesHtml + "</div>" : "") +
-        '<div class="meal-card-image">' +
-          '<span class="meal-plate-icon">' +
-            '<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.15">' +
-              '<circle cx="12" cy="12" r="10"/>' +
-              '<circle cx="12" cy="12" r="6"/>' +
-            '</svg>' +
-          '</span>' +
-        '</div>' +
+        imageHtml +
         '<div class="meal-card-body">' +
           '<h3>' + meal.name + '</h3>' +
           '<div class="meal-macros">' + macrosText + '</div>' +
@@ -207,12 +238,21 @@
       var qty = cart[id];
       var lineTotal = (qty * PROMO_PRICE).toFixed(2);
 
+      // Cart item image
+      var cartImgHtml;
+      if (meal.image) {
+        cartImgHtml = '<div class="cart-item-icon has-photo"><img src="' + meal.image + '" alt="' + meal.name + '"></div>';
+      } else {
+        cartImgHtml =
+          '<div class="cart-item-icon">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg>' +
+          '</div>';
+      }
+
       var el = document.createElement("div");
       el.className = "cart-item";
       el.innerHTML =
-        '<div class="cart-item-icon">' +
-          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg>' +
-        '</div>' +
+        cartImgHtml +
         '<div class="cart-item-info">' +
           '<h4>' + meal.name + '</h4>' +
           '<span>' + meal.calories + ' cal | ' + meal.protein + 'p</span>' +
@@ -289,6 +329,14 @@
   function bindCheckoutEvents() {
     checkoutBtn.addEventListener("click", function () {
       if (totalSelected < REQUIRED_MEALS) return;
+
+      // If Shopify is connected, redirect to Shopify checkout
+      if (shopifyReady) {
+        handleShopifyCheckout();
+        return;
+      }
+
+      // Otherwise open the contact-info-only modal (demo or fallback)
       checkoutModal.classList.add("open");
       document.body.style.overflow = "hidden";
     });
@@ -298,27 +346,13 @@
       if (e.target === checkoutModal) closeCheckoutModal();
     });
 
-    var cardInput = document.getElementById("cardNumber");
-    cardInput.addEventListener("input", function () {
-      var val = cardInput.value.replace(/\D/g, "").substring(0, 16);
-      cardInput.value = val.replace(/(\d{4})(?=\d)/g, "$1 ");
-    });
-
-    var expiryInput = document.getElementById("cardExpiry");
-    expiryInput.addEventListener("input", function () {
-      var val = expiryInput.value.replace(/\D/g, "").substring(0, 4);
-      if (val.length >= 2) val = val.substring(0, 2) + "/" + val.substring(2);
-      expiryInput.value = val;
-    });
-
-    var cvcInput = document.getElementById("cardCvc");
-    cvcInput.addEventListener("input", function () {
-      cvcInput.value = cvcInput.value.replace(/\D/g, "").substring(0, 4);
-    });
-
     checkoutForm.addEventListener("submit", function (e) {
       e.preventDefault();
-      handleCheckout();
+      if (shopifyReady) {
+        handleShopifyCheckout();
+      } else {
+        handleDemoCheckout();
+      }
     });
   }
 
@@ -327,8 +361,36 @@
     document.body.style.overflow = "";
   }
 
-  // ─── HANDLE CHECKOUT ───────────────────────────────────────
-  function handleCheckout() {
+  // ─── SHOPIFY CHECKOUT ─────────────────────────────────────
+  function handleShopifyCheckout() {
+    checkoutBtn.disabled = true;
+    checkoutBtn.textContent = "Redirecting to checkout...";
+    if (placeOrderBtn) {
+      placeOrderBtn.disabled = true;
+      placeOrderBtn.textContent = "Redirecting...";
+    }
+
+    ShopifyCheckout.createCheckout(cart).then(function (checkoutUrl) {
+      // Redirect to Shopify's secure checkout
+      window.location.href = checkoutUrl;
+    }).catch(function (err) {
+      console.error("[CRAVE] Checkout error:", err);
+      showToast("Something went wrong. Please try again.");
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = "Proceed to Checkout";
+      if (placeOrderBtn) {
+        placeOrderBtn.disabled = false;
+        placeOrderBtn.textContent = "Place Order — $99.90";
+      }
+
+      // Fall back to the contact form modal
+      checkoutModal.classList.add("open");
+      document.body.style.overflow = "hidden";
+    });
+  }
+
+  // ─── DEMO CHECKOUT (when Shopify not connected) ───────────
+  function handleDemoCheckout() {
     var fields = checkoutForm.querySelectorAll("[required]");
     var valid = true;
 
@@ -343,12 +405,6 @@
     var emailField = document.getElementById("email");
     if (emailField.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailField.value)) {
       emailField.classList.add("error");
-      valid = false;
-    }
-
-    var cardField = document.getElementById("cardNumber");
-    if (cardField.value.replace(/\D/g, "").length < 15) {
-      cardField.classList.add("error");
       valid = false;
     }
 
@@ -371,7 +427,7 @@
       document.body.style.overflow = "hidden";
 
       placeOrderBtn.disabled = false;
-      placeOrderBtn.textContent = "Place Order \u2014 $99.90";
+      placeOrderBtn.textContent = "Place Order — $99.90";
 
       var orderData = {
         orderId: oid,
@@ -383,17 +439,13 @@
         customer: {
           name: document.getElementById("firstName").value + " " + document.getElementById("lastName").value,
           email: document.getElementById("email").value,
-          phone: document.getElementById("phone").value,
-          address: document.getElementById("address").value,
-          city: document.getElementById("city").value,
-          state: document.getElementById("state").value,
-          zip: document.getElementById("zip").value
+          phone: document.getElementById("phone").value
         },
         deliveryDate: document.getElementById("deliveryDate").value,
         notes: document.getElementById("notes").value
       };
 
-      console.log("ORDER PLACED:", orderData);
+      console.log("ORDER PLACED (demo mode):", orderData);
     }, 1800);
   }
 
