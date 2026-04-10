@@ -1,51 +1,41 @@
 /**
  * CRAVE Meal Prep Co. — Promo Landing Page
- * 10 Meals for $9.99 Each — Full Meal Selection & Checkout
+ * 10 Meals for $9.99 Each — Meal Selection & Checkout
  */
 
 (function () {
   "use strict";
 
-  const PROMO_PRICE = 9.99;
-  const REQUIRED_MEALS = 10;
+  var PROMO_PRICE = 9.99;
+  var REQUIRED_MEALS = 10;
 
   // ─── STATE ──────────────────────────────────────────────────
-  // cart maps meal id -> quantity
-  const cart = {};
-  let totalSelected = 0;
-
-  // ─── CATEGORY ICON MAP ─────────────────────────────────────
-  const categoryIcons = {
-    chicken: "🍗",
-    turkey: "🍗",
-    beef: "🥩",
-    breakfast: "🍳",
-    premium: "🍝"
-  };
+  var cart = {};
+  var totalSelected = 0;
 
   // ─── DOM REFS ───────────────────────────────────────────────
-  const mealsGrid = document.getElementById("mealsGrid");
-  const selectedCountEl = document.getElementById("selectedCount");
-  const progressFill = document.getElementById("progressFill");
-  const reviewOrderBtn = document.getElementById("reviewOrderBtn");
-  const cartCountEl = document.getElementById("cart-count");
-  const mobileCartCount = document.querySelector(".mobile-cart-count");
-  const cartItemsEl = document.getElementById("cartItems");
-  const cartEmptyEl = document.getElementById("cartEmpty");
-  const summaryCountEl = document.getElementById("summaryCount");
-  const summaryTotalEl = document.getElementById("summaryTotal");
-  const summaryNoteEl = document.getElementById("summaryNote");
-  const remainingCountEl = document.getElementById("remainingCount");
-  const checkoutBtn = document.getElementById("checkoutBtn");
-  const checkoutModal = document.getElementById("checkoutModal");
-  const confirmationModal = document.getElementById("confirmationModal");
-  const modalClose = document.getElementById("modalClose");
-  const checkoutForm = document.getElementById("checkoutForm");
-  const placeOrderBtn = document.getElementById("placeOrderBtn");
-  const orderIdEl = document.getElementById("orderId");
-  const mobileMenuBtn = document.querySelector(".mobile-menu-btn");
-  const mobileNav = document.getElementById("mobileNav");
-  const deliveryDateInput = document.getElementById("deliveryDate");
+  var mealsGrid = document.getElementById("mealsGrid");
+  var selectedCountEl = document.getElementById("selectedCount");
+  var progressFill = document.getElementById("progressFill");
+  var reviewOrderBtn = document.getElementById("reviewOrderBtn");
+  var cartCountEl = document.getElementById("cart-count");
+  var mobileCartCount = document.querySelector(".mobile-cart-count");
+  var cartItemsEl = document.getElementById("cartItems");
+  var cartEmptyEl = document.getElementById("cartEmpty");
+  var summaryCountEl = document.getElementById("summaryCount");
+  var summaryTotalEl = document.getElementById("summaryTotal");
+  var summaryNoteEl = document.getElementById("summaryNote");
+  var remainingCountEl = document.getElementById("remainingCount");
+  var checkoutBtn = document.getElementById("checkoutBtn");
+  var checkoutModal = document.getElementById("checkoutModal");
+  var confirmationModal = document.getElementById("confirmationModal");
+  var modalClose = document.getElementById("modalClose");
+  var checkoutForm = document.getElementById("checkoutForm");
+  var placeOrderBtn = document.getElementById("placeOrderBtn");
+  var orderIdEl = document.getElementById("orderId");
+  var mobileMenuBtn = document.querySelector(".mobile-menu-btn");
+  var mobileNav = document.getElementById("mobileNav");
+  var deliveryDateInput = document.getElementById("deliveryDate");
 
   // ─── INIT ───────────────────────────────────────────────────
   function init() {
@@ -54,10 +44,8 @@
     bindHeaderEvents();
     bindCheckoutEvents();
     setMinDeliveryDate();
-    addStickyBarScrollEffect();
     animateOnScroll();
     startCountdown();
-    animateClaimedCount();
   }
 
   // ─── RENDER MEALS ───────────────────────────────────────────
@@ -65,63 +53,44 @@
     mealsGrid.innerHTML = "";
     meals.forEach(function (meal) {
       var qty = cart[meal.id] || 0;
-      var icon = categoryIcons[meal.category] || "🍲";
+      var atLimit = totalSelected >= REQUIRED_MEALS;
 
-      var tagsHtml = "";
+      // Dietary badges
+      var badgesHtml = "";
+      if (meal.isNew) {
+        badgesHtml += '<span class="meal-badge new-badge">NEW</span>';
+      }
       if (meal.tags && meal.tags.length > 0) {
         meal.tags.forEach(function (tag) {
-          tagsHtml += '<span class="meal-tag">' + tag + "</span>";
+          badgesHtml += '<span class="meal-badge">' + tag + "</span>";
         });
       }
 
-      // Estimate original prices per category for crossed-out price
-      var origPrices = {
-        chicken: 14.95, turkey: 14.95, beef: 14.95,
-        breakfast: 14.95, premium: 18.49
-      };
-      var origPrice = origPrices[meal.category] || 14.95;
-
-      var controlHtml;
-      if (qty > 0) {
-        controlHtml =
-          '<div class="meal-qty-control">' +
-            '<button class="qty-btn" data-action="decrement" data-id="' + meal.id + '">-</button>' +
-            '<span class="qty-display">' + qty + '</span>' +
-            '<button class="qty-btn" data-action="increment" data-id="' + meal.id + '"' +
-              (totalSelected >= REQUIRED_MEALS ? " disabled" : "") + '>+</button>' +
-          '</div>';
-      } else {
-        controlHtml =
-          '<button class="add-meal-btn" data-id="' + meal.id + '"' +
-            (totalSelected >= REQUIRED_MEALS ? " disabled" : "") +
-          '>+ Add</button>';
-      }
+      // Macros in compact format matching real site
+      var macrosText = meal.calories + " cal | " + meal.protein + "p | " + meal.carbs + "c | " + meal.fat + "f";
 
       var card = document.createElement("div");
       card.className = "meal-card" + (qty > 0 ? " selected" : "");
       card.setAttribute("data-category", meal.category);
       card.innerHTML =
+        (badgesHtml ? '<div class="meal-badges">' + badgesHtml + "</div>" : "") +
         '<div class="meal-card-image">' +
-          '<span class="meal-icon">' + icon + '</span>' +
-          '<span class="category-badge">' + meal.category + '</span>' +
-          (meal.popular ? '<span class="popular-badge">Popular</span>' : '') +
+          '<span class="meal-plate-icon">' +
+            '<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.15">' +
+              '<circle cx="12" cy="12" r="10"/>' +
+              '<circle cx="12" cy="12" r="6"/>' +
+            '</svg>' +
+          '</span>' +
         '</div>' +
         '<div class="meal-card-body">' +
           '<h3>' + meal.name + '</h3>' +
-          (tagsHtml ? '<div class="meal-tags">' + tagsHtml + '</div>' : '') +
-          '<p>' + meal.description + '</p>' +
-          '<div class="meal-macros">' +
-            '<span class="macro"><strong>' + meal.calories + '</strong> cal</span>' +
-            '<span class="macro"><strong>' + meal.protein + 'g</strong> protein</span>' +
-            '<span class="macro"><strong>' + meal.carbs + 'g</strong> carbs</span>' +
-            '<span class="macro"><strong>' + meal.fat + 'g</strong> fat</span>' +
-          '</div>' +
-          '<div class="meal-card-footer">' +
-            '<div class="meal-price">' +
-              '$' + PROMO_PRICE.toFixed(2) +
-              '<span class="original-price">$' + origPrice.toFixed(2) + '</span>' +
-            '</div>' +
-            controlHtml +
+          '<div class="meal-macros">' + macrosText + '</div>' +
+          '<div class="meal-qty-control">' +
+            '<button class="qty-btn" data-action="decrement" data-id="' + meal.id + '"' +
+              (qty <= 0 ? " disabled" : "") + '>&minus;</button>' +
+            '<span class="qty-display">' + qty + '</span>' +
+            '<button class="qty-btn" data-action="increment" data-id="' + meal.id + '"' +
+              (atLimit && qty <= 0 ? " disabled" : "") + '>+</button>' +
           '</div>' +
         '</div>';
 
@@ -133,16 +102,6 @@
 
   // ─── MEAL CARD EVENTS ──────────────────────────────────────
   function bindMealCardEvents() {
-    // Add buttons
-    var addBtns = mealsGrid.querySelectorAll(".add-meal-btn");
-    addBtns.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var id = btn.getAttribute("data-id");
-        addToCart(id);
-      });
-    });
-
-    // Qty buttons
     var qtyBtns = mealsGrid.querySelectorAll(".qty-btn");
     qtyBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -181,9 +140,7 @@
     if (!cart[mealId]) return;
     cart[mealId]--;
     totalSelected--;
-    if (cart[mealId] <= 0) {
-      delete cart[mealId];
-    }
+    if (cart[mealId] <= 0) delete cart[mealId];
     updateUI();
   }
 
@@ -196,40 +153,29 @@
 
   // ─── UPDATE UI ──────────────────────────────────────────────
   function updateUI() {
-    // Selection bar
     selectedCountEl.textContent = totalSelected;
     var pct = (totalSelected / REQUIRED_MEALS) * 100;
     progressFill.style.width = pct + "%";
-    if (totalSelected >= REQUIRED_MEALS) {
-      progressFill.classList.add("complete");
-    } else {
-      progressFill.classList.remove("complete");
-    }
+    progressFill.classList.toggle("complete", totalSelected >= REQUIRED_MEALS);
 
-    // Review button
     reviewOrderBtn.disabled = totalSelected < REQUIRED_MEALS;
-
-    // Header cart count
     cartCountEl.textContent = totalSelected;
     if (mobileCartCount) mobileCartCount.textContent = totalSelected;
 
-    // Re-render meal cards with current filter
+    // Re-render meals with current filter
     var activeFilter = document.querySelector(".filter-btn.active");
     var category = activeFilter ? activeFilter.getAttribute("data-category") : "all";
-    var filteredMeals = category === "all" ? MEALS : MEALS.filter(function (m) { return m.category === category; });
-    renderMeals(filteredMeals);
+    var filtered = category === "all" ? MEALS : MEALS.filter(function (m) { return m.category === category; });
+    renderMeals(filtered);
 
-    // Render cart items
     renderCart();
 
-    // Summary
     summaryCountEl.textContent = totalSelected + " / " + REQUIRED_MEALS;
     var totalPrice = totalSelected * PROMO_PRICE;
     summaryTotalEl.textContent = "$" + totalPrice.toFixed(2);
 
     var remaining = REQUIRED_MEALS - totalSelected;
     if (remaining > 0) {
-      remainingCountEl.textContent = remaining;
       summaryNoteEl.innerHTML = "Select <strong>" + remaining + "</strong> more meal" + (remaining !== 1 ? "s" : "") + " to complete your order.";
       summaryNoteEl.className = "summary-note";
     } else {
@@ -238,8 +184,6 @@
     }
 
     checkoutBtn.disabled = totalSelected < REQUIRED_MEALS;
-
-    // Update sticky mobile CTA
     updateStickyCta();
   }
 
@@ -254,7 +198,6 @@
     }
 
     cartEmptyEl.style.display = "none";
-    // Remove all children except cartEmpty
     var items = cartItemsEl.querySelectorAll(".cart-item");
     items.forEach(function (item) { item.remove(); });
 
@@ -262,23 +205,23 @@
       var meal = getMealById(id);
       if (!meal) return;
       var qty = cart[id];
-      var icon = categoryIcons[meal.category] || "🍲";
       var lineTotal = (qty * PROMO_PRICE).toFixed(2);
 
       var el = document.createElement("div");
       el.className = "cart-item";
       el.innerHTML =
-        '<div class="cart-item-image">' + icon + '</div>' +
+        '<div class="cart-item-icon">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg>' +
+        '</div>' +
         '<div class="cart-item-info">' +
           '<h4>' + meal.name + '</h4>' +
-          '<span>' + meal.calories + ' cal | ' + meal.protein + 'g protein</span>' +
+          '<span>' + meal.calories + ' cal | ' + meal.protein + 'p</span>' +
         '</div>' +
         '<div class="cart-item-qty">' +
-          '<button class="cart-qty-btn" data-action="cart-dec" data-id="' + id + '">-</button>' +
+          '<button class="cart-qty-btn" data-action="cart-dec" data-id="' + id + '">&minus;</button>' +
           '<span class="cart-qty-display">' + qty + '</span>' +
           '<button class="cart-qty-btn" data-action="cart-inc" data-id="' + id + '"' +
-            (totalSelected >= REQUIRED_MEALS ? " disabled" : "") +
-          '>+</button>' +
+            (totalSelected >= REQUIRED_MEALS ? " disabled" : "") + '>+</button>' +
         '</div>' +
         '<span class="cart-item-price">$' + lineTotal + '</span>' +
         '<button class="cart-item-remove" data-id="' + id + '" title="Remove">&times;</button>';
@@ -286,7 +229,6 @@
       cartItemsEl.appendChild(el);
     });
 
-    // Bind cart item events
     bindCartItemEvents();
   }
 
@@ -296,19 +238,15 @@
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-id");
         var action = btn.getAttribute("data-action");
-        if (action === "cart-inc") {
-          addToCart(id);
-        } else {
-          removeFromCart(id);
-        }
+        if (action === "cart-inc") addToCart(id);
+        else removeFromCart(id);
       });
     });
 
     var removeBtns = cartItemsEl.querySelectorAll(".cart-item-remove");
     removeBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var id = btn.getAttribute("data-id");
-        removeAllOfMeal(id);
+        removeAllOfMeal(btn.getAttribute("data-id"));
       });
     });
   }
@@ -329,14 +267,12 @@
 
   // ─── HEADER EVENTS ─────────────────────────────────────────
   function bindHeaderEvents() {
-    // Mobile menu toggle
     if (mobileMenuBtn) {
       mobileMenuBtn.addEventListener("click", function () {
         mobileNav.classList.toggle("open");
       });
     }
 
-    // Close mobile menu on link click
     var mobileLinks = mobileNav.querySelectorAll("a");
     mobileLinks.forEach(function (link) {
       link.addEventListener("click", function () {
@@ -344,7 +280,6 @@
       });
     });
 
-    // Review order button scrolls to cart
     reviewOrderBtn.addEventListener("click", function () {
       document.getElementById("cart-section").scrollIntoView({ behavior: "smooth" });
     });
@@ -352,44 +287,35 @@
 
   // ─── CHECKOUT EVENTS ───────────────────────────────────────
   function bindCheckoutEvents() {
-    // Open checkout modal
     checkoutBtn.addEventListener("click", function () {
       if (totalSelected < REQUIRED_MEALS) return;
       checkoutModal.classList.add("open");
       document.body.style.overflow = "hidden";
     });
 
-    // Close modal
     modalClose.addEventListener("click", closeCheckoutModal);
     checkoutModal.addEventListener("click", function (e) {
       if (e.target === checkoutModal) closeCheckoutModal();
     });
 
-    // Card number formatting
     var cardInput = document.getElementById("cardNumber");
     cardInput.addEventListener("input", function () {
       var val = cardInput.value.replace(/\D/g, "").substring(0, 16);
-      var formatted = val.replace(/(\d{4})(?=\d)/g, "$1 ");
-      cardInput.value = formatted;
+      cardInput.value = val.replace(/(\d{4})(?=\d)/g, "$1 ");
     });
 
-    // Expiry formatting
     var expiryInput = document.getElementById("cardExpiry");
     expiryInput.addEventListener("input", function () {
       var val = expiryInput.value.replace(/\D/g, "").substring(0, 4);
-      if (val.length >= 2) {
-        val = val.substring(0, 2) + "/" + val.substring(2);
-      }
+      if (val.length >= 2) val = val.substring(0, 2) + "/" + val.substring(2);
       expiryInput.value = val;
     });
 
-    // CVC - numbers only
     var cvcInput = document.getElementById("cardCvc");
     cvcInput.addEventListener("input", function () {
       cvcInput.value = cvcInput.value.replace(/\D/g, "").substring(0, 4);
     });
 
-    // Form submit
     checkoutForm.addEventListener("submit", function (e) {
       e.preventDefault();
       handleCheckout();
@@ -403,7 +329,6 @@
 
   // ─── HANDLE CHECKOUT ───────────────────────────────────────
   function handleCheckout() {
-    // Validate form
     var fields = checkoutForm.querySelectorAll("[required]");
     var valid = true;
 
@@ -415,49 +340,39 @@
       }
     });
 
-    // Email validation
     var emailField = document.getElementById("email");
-    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailField.value && !emailPattern.test(emailField.value)) {
+    if (emailField.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailField.value)) {
       emailField.classList.add("error");
       valid = false;
     }
 
-    // Card number validation (basic)
     var cardField = document.getElementById("cardNumber");
-    var cardDigits = cardField.value.replace(/\D/g, "");
-    if (cardDigits.length < 15) {
+    if (cardField.value.replace(/\D/g, "").length < 15) {
       cardField.classList.add("error");
       valid = false;
     }
 
     if (!valid) {
       showToast("Please fill in all required fields.");
-      // Scroll to first error
       var firstError = checkoutForm.querySelector(".error");
       if (firstError) firstError.focus();
       return;
     }
 
-    // Simulate order processing
     placeOrderBtn.disabled = true;
     placeOrderBtn.textContent = "Processing...";
 
     setTimeout(function () {
-      // Generate order ID
       var oid = "CRV-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).substring(2, 6).toUpperCase();
       orderIdEl.textContent = oid;
 
-      // Close checkout, show confirmation
       closeCheckoutModal();
       confirmationModal.classList.add("open");
       document.body.style.overflow = "hidden";
 
-      // Reset button
       placeOrderBtn.disabled = false;
       placeOrderBtn.textContent = "Place Order \u2014 $99.90";
 
-      // Log the order (in production, this would POST to your backend)
       var orderData = {
         orderId: oid,
         meals: Object.keys(cart).map(function (id) {
@@ -484,10 +399,9 @@
 
   // ─── DELIVERY DATE ─────────────────────────────────────────
   function setMinDeliveryDate() {
-    // Next available Sunday (meals prep on Sundays)
     var today = new Date();
     var daysUntilSunday = (7 - today.getDay()) % 7;
-    if (daysUntilSunday < 3) daysUntilSunday += 7; // Need at least 3 days lead time
+    if (daysUntilSunday < 3) daysUntilSunday += 7;
     var nextSunday = new Date(today);
     nextSunday.setDate(today.getDate() + daysUntilSunday);
     var minDate = nextSunday.toISOString().split("T")[0];
@@ -495,9 +409,8 @@
     deliveryDateInput.value = minDate;
   }
 
-  // ─── TOAST NOTIFICATIONS ───────────────────────────────────
+  // ─── TOAST ─────────────────────────────────────────────────
   function showToast(message) {
-    // Remove existing toast
     var existing = document.querySelector(".toast");
     if (existing) existing.remove();
 
@@ -506,76 +419,45 @@
     toast.textContent = message;
     document.body.appendChild(toast);
 
-    // Trigger animation
-    requestAnimationFrame(function () {
-      toast.classList.add("show");
-    });
-
+    requestAnimationFrame(function () { toast.classList.add("show"); });
     setTimeout(function () {
       toast.classList.remove("show");
       setTimeout(function () { toast.remove(); }, 300);
     }, 2800);
   }
 
-  // ─── SCROLL EFFECTS ────────────────────────────────────────
-  function addStickyBarScrollEffect() {
-    var selectionBar = document.getElementById("selectionBar");
-    if (!selectionBar) return;
-
-    var observer = new IntersectionObserver(
-      function (entries) {
-        entries.forEach(function (entry) {
-          if (!entry.isIntersecting) {
-            selectionBar.style.borderRadius = "0";
-          } else {
-            selectionBar.style.borderRadius = "var(--radius-md)";
-          }
-        });
-      },
-      { threshold: 0, rootMargin: "-68px 0px 0px 0px" }
-    );
-
-    observer.observe(document.querySelector(".meals-section"));
-  }
-
+  // ─── SCROLL ANIMATIONS ────────────────────────────────────
   function animateOnScroll() {
-    var cards = document.querySelectorAll(".step, .meal-card");
-    var observer = new IntersectionObserver(
-      function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            entry.target.style.opacity = "1";
-            entry.target.style.transform = "translateY(0)";
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
+    var elements = document.querySelectorAll(".step, .testimonial-card, .trust-badge");
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = "1";
+          entry.target.style.transform = "translateY(0)";
+        }
+      });
+    }, { threshold: 0.1 });
 
-    cards.forEach(function (card) {
-      card.style.opacity = "0";
-      card.style.transform = "translateY(20px)";
-      card.style.transition = "opacity .5s ease, transform .5s ease";
-      observer.observe(card);
+    elements.forEach(function (el) {
+      el.style.opacity = "0";
+      el.style.transform = "translateY(20px)";
+      el.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+      observer.observe(el);
     });
   }
 
-  // ─── COUNTDOWN TIMER ────────────────────────────────────────
+  // ─── COUNTDOWN TIMER ──────────────────────────────────────
   function startCountdown() {
     var timerEl = document.getElementById("countdownTimer");
     if (!timerEl) return;
 
-    // Set deadline to end of today (midnight)
     var now = new Date();
     var deadline = new Date(now);
     deadline.setHours(23, 59, 59, 0);
 
     function tick() {
       var remaining = deadline - new Date();
-      if (remaining <= 0) {
-        timerEl.textContent = "00:00:00";
-        return;
-      }
+      if (remaining <= 0) { timerEl.textContent = "00:00:00"; return; }
       var h = Math.floor(remaining / 3600000);
       var m = Math.floor((remaining % 3600000) / 60000);
       var s = Math.floor((remaining % 60000) / 1000);
@@ -588,29 +470,13 @@
     tick();
   }
 
-  // ─── SOCIAL PROOF COUNTER ─────────────────────────────────
-  function animateClaimedCount() {
-    var el = document.getElementById("claimedCount");
-    if (!el) return;
-
-    // Slowly increment to simulate real-time claims
-    var base = 147;
-    setInterval(function () {
-      if (Math.random() > 0.6) {
-        base += 1;
-        el.textContent = base;
-      }
-    }, 30000);
-  }
-
-  // ─── STICKY MOBILE CTA ────────────────────────────────────
+  // ─── STICKY MOBILE CTA ───────────────────────────────────
   function updateStickyCta() {
     var stickyCount = document.getElementById("stickyCount");
     var stickyBtn = document.getElementById("stickyCtaBtn");
     if (!stickyCount || !stickyBtn) return;
 
     stickyCount.textContent = totalSelected;
-
     if (totalSelected >= REQUIRED_MEALS) {
       stickyBtn.textContent = "Checkout";
       stickyBtn.href = "#cart-section";
@@ -620,7 +486,7 @@
     }
   }
 
-  // ─── HELPERS ────────────────────────────────────────────────
+  // ─── HELPERS ──────────────────────────────────────────────
   function getMealById(id) {
     for (var i = 0; i < MEALS.length; i++) {
       if (MEALS[i].id === id) return MEALS[i];
@@ -628,7 +494,7 @@
     return null;
   }
 
-  // ─── START ──────────────────────────────────────────────────
+  // ─── START ────────────────────────────────────────────────
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
