@@ -16,11 +16,11 @@
 
   // ─── CATEGORY ICON MAP ─────────────────────────────────────
   const categoryIcons = {
-    chicken: "\u{1F357}",
-    turkey: "\u{1F357}",
-    beef: "\u{1F969}",
-    breakfast: "\u{1F373}",
-    premium: "\u{1F35D}"
+    chicken: "🍗",
+    turkey: "🍗",
+    beef: "🥩",
+    breakfast: "🍳",
+    premium: "🍝"
   };
 
   // ─── DOM REFS ───────────────────────────────────────────────
@@ -65,7 +65,7 @@
     mealsGrid.innerHTML = "";
     meals.forEach(function (meal) {
       var qty = cart[meal.id] || 0;
-      var icon = categoryIcons[meal.category] || "\u{1F372}";
+      var icon = categoryIcons[meal.category] || "🍲";
 
       var tagsHtml = "";
       if (meal.tags && meal.tags.length > 0) {
@@ -262,7 +262,7 @@
       var meal = getMealById(id);
       if (!meal) return;
       var qty = cart[id];
-      var icon = categoryIcons[meal.category] || "\u{1F372}";
+      var icon = categoryIcons[meal.category] || "🍲";
       var lineTotal = (qty * PROMO_PRICE).toFixed(2);
 
       var el = document.createElement("div");
