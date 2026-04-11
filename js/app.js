@@ -53,17 +53,8 @@
   // ─── SHOPIFY INIT ──────────────────────────────────────────
   function initShopify() {
     if (typeof ShopifyCheckout !== "undefined" && ShopifyCheckout.isConfigured()) {
-      ShopifyCheckout.init().then(function (ready) {
-        shopifyReady = ready;
-        if (ready) {
-          // Re-render meals to pick up any images from Shopify
-          var activeFilter = document.querySelector(".filter-btn.active");
-          var category = activeFilter ? activeFilter.getAttribute("data-category") : "all";
-          var filtered = category === "all" ? MEALS : MEALS.filter(function (m) { return m.category === category; });
-          renderMeals(filtered);
-          console.log("[CRAVE] Shopify connected — real checkout enabled");
-        }
-      });
+      shopifyReady = true;
+      console.log("[CRAVE] Shopify checkout ready — cart permalink mode");
     }
   }
 
@@ -363,6 +354,14 @@
 
   // ─── SHOPIFY CHECKOUT ─────────────────────────────────────
   function handleShopifyCheckout() {
+    var checkoutUrl = ShopifyCheckout.buildCheckoutUrl(cart);
+
+    if (!checkoutUrl) {
+      console.error("[CRAVE] Could not build checkout URL — no valid variant IDs in cart");
+      showToast("Something went wrong. Please try again.");
+      return;
+    }
+
     checkoutBtn.disabled = true;
     checkoutBtn.textContent = "Redirecting to checkout...";
     if (placeOrderBtn) {
@@ -370,23 +369,9 @@
       placeOrderBtn.textContent = "Redirecting...";
     }
 
-    ShopifyCheckout.createCheckout(cart).then(function (checkoutUrl) {
-      // Redirect to Shopify's secure checkout
-      window.location.href = checkoutUrl;
-    }).catch(function (err) {
-      console.error("[CRAVE] Checkout error:", err);
-      showToast("Something went wrong. Please try again.");
-      checkoutBtn.disabled = false;
-      checkoutBtn.textContent = "Proceed to Checkout";
-      if (placeOrderBtn) {
-        placeOrderBtn.disabled = false;
-        placeOrderBtn.textContent = "Place Order — $99.90";
-      }
-
-      // Fall back to the contact form modal
-      checkoutModal.classList.add("open");
-      document.body.style.overflow = "hidden";
-    });
+    // Redirect to Shopify's real cart — it will load all selected
+    // meals and apply the promo discount code automatically.
+    window.location.href = checkoutUrl;
   }
 
   // ─── DEMO CHECKOUT (when Shopify not connected) ───────────

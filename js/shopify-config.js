@@ -1,59 +1,43 @@
 /**
- * CRAVE Meal Prep Co. — Shopify Configuration
+ * CRAVE Meal Prep Co. — Shopify Checkout Configuration
  *
- * HOW TO SET UP:
- * 1. In Shopify Admin → Settings → Apps and sales channels → Develop apps
- * 2. Click your app (e.g. "promo landing page")
- * 3. Go to "Configuration" tab → Storefront API access scopes
- *    - Enable: unauthenticated_read_product_listings
- *    - Enable: unauthenticated_write_checkouts
- *    - Enable: unauthenticated_read_checkouts
- * 4. Click "Install app" if not already installed
- * 5. Go to "API credentials" tab
- * 6. Copy the "Storefront API access token" and paste it below
+ * This integration uses Shopify's public cart permalink URLs:
+ *   https://cravemealprepco.com/cart/VARIANT_ID:QTY,VARIANT_ID:QTY?discount=CODE
  *
- * That's it! Once the token is set, the checkout button will
- * redirect customers to your real Shopify checkout page.
- * Orders will appear in your Shopify admin and payments go
- * directly to your bank account.
+ * No API token, no custom app, no SDK required. The variant IDs in
+ * meals-data.js are public Shopify product variant IDs. When a customer
+ * clicks checkout, we build this URL and redirect them — Shopify loads
+ * the cart with all 10 meals pre-populated and applies the promo discount
+ * automatically.
+ *
+ * ─── ONE-TIME SETUP ──────────────────────────────────────────
+ * In Shopify Admin → Discounts → Create discount:
+ *   • Type: Amount off products
+ *   • Method: Discount code
+ *   • Code: PROMO10 (or whatever you set below)
+ *   • Value: enough to bring 10 meals to $99.90 total
+ *     (e.g. if your regular price is $13.99/meal, set a fixed
+ *      amount off per item of $4.00, or use "Set fixed price" to
+ *      lock the bundle to $99.90)
+ *   • Applies to: specific products (select the 20 promo meals)
+ *   • Minimum quantity: 10 items
+ *
+ * Once the discount code is created in Shopify, paste it into
+ * `discountCode` below. That's it — the landing page is live.
  */
 
 var SHOPIFY_CONFIG = {
-  // Your Shopify store domain (the .myshopify.com one)
-  domain: "cravemealprepco.myshopify.com",
+  // Your Shopify store domain — customers land here after clicking checkout.
+  // Use the custom domain (not .myshopify.com) so the URL looks clean.
+  storeDomain: "cravemealprepco.com",
 
-  // Storefront API access token — paste yours here
-  // Get it from: Shopify Admin → Settings → Apps → Develop apps → your app → API credentials
-  storefrontAccessToken: "",
+  // The discount code you created in Shopify Admin → Discounts.
+  // Leave blank to send customers to checkout without a discount applied.
+  discountCode: "PROMO10",
 
-  // Promo price per meal
+  // Promo price per meal (display only)
   promoPrice: 9.99,
 
-  // Number of meals required
-  requiredMeals: 10,
-
-  // Map meal IDs to Shopify product handles (these get looked up automatically)
-  // If products aren't found by handle, the system falls back to searching by title
-  productHandleMap: {
-    "chicken-waffles": "chicken-waffles",
-    "buffalo-chicken-quesadilla": "buffalo-chicken-quesadilla",
-    "charred-peruvian-chicken": "charred-peruvian-chicken",
-    "kfc-bowl": "kfc-bowl",
-    "general-tsos-chicken-meatballs": "general-tsos-chicken-meatballs",
-    "chipotle-chicken": "chipotle-chicken",
-    "teriyaki-chicken-potstickers": "teriyaki-chicken-potstickers",
-    "chimichurri-chicken": "chimichurri-chicken",
-    "lemon-garlic-chicken": "lemon-garlic-chicken",
-    "creamy-gochujang-beef-noodles": "creamy-gochujang-beef-noodles",
-    "3-bean-beef-chili": "3-bean-beef-chili",
-    "sweet-chili-beef": "sweet-chili-beef",
-    "beef-and-broccoli": "beef-and-broccoli",
-    "bacon-cheddar-burger": "bacon-cheddar-burger",
-    "shepards-pie": "shepards-pie",
-    "pepper-jack-turkey-burger": "pepper-jack-turkey-burger",
-    "turkey-burger": "turkey-burger",
-    "crave-breakfast-burrito": "crave-breakfast-burrito",
-    "steak-and-eggs": "steak-and-eggs",
-    "shrimp-scampi": "shrimp-scampi"
-  }
+  // Number of meals required (display only)
+  requiredMeals: 10
 };
