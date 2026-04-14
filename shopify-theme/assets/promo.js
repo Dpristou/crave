@@ -375,6 +375,125 @@ var ShopifyCheckout = (function () {
 })();
 
 /**
+ * CRAVE Meal Prep Co. — Klaviyo Configuration
+ *
+ * Replace YOUR_KLAVIYO_PUBLIC_API_KEY with your Klaviyo public API key (Site ID).
+ * Found in Klaviyo → Account → Settings → API Keys.
+ */
+
+var KLAVIYO_CONFIG = {
+  publicApiKey: "YOUR_KLAVIYO_PUBLIC_API_KEY",
+  listId: ""
+};
+
+/**
+ * CRAVE Meal Prep Co. — Klaviyo Event Tracking
+ */
+
+var CraveKlaviyo = (function () {
+  "use strict";
+
+  window._learnq = window._learnq || [];
+
+  function isConfigured() {
+    return !!(
+      typeof KLAVIYO_CONFIG !== "undefined" &&
+      KLAVIYO_CONFIG.publicApiKey &&
+      KLAVIYO_CONFIG.publicApiKey !== "YOUR_KLAVIYO_PUBLIC_API_KEY"
+    );
+  }
+
+  function identify(email, firstName, lastName, phone) {
+    if (!isConfigured()) return;
+    var profile = { "$email": email };
+    if (firstName) profile["$first_name"] = firstName;
+    if (lastName) profile["$last_name"] = lastName;
+    if (phone) profile["$phone_number"] = phone;
+    _learnq.push(["identify", profile]);
+  }
+
+  function track(eventName, properties) {
+    if (!isConfigured()) return;
+    _learnq.push(["track", eventName, properties || {}]);
+  }
+
+  function trackPageView() {
+    track("Viewed Promo Page", {
+      "Page": "10 Meals for $9.99",
+      "URL": window.location.href
+    });
+  }
+
+  function trackAddToCart(meal, qty) {
+    if (!meal) return;
+    track("Added to Cart", {
+      "ProductName": meal.name,
+      "ProductID": meal.id,
+      "Category": meal.category,
+      "Quantity": qty,
+      "Price": 9.99,
+      "Calories": meal.calories,
+      "Protein": meal.protein
+    });
+  }
+
+  function trackStartedCheckout(cartItems, totalPrice) {
+    track("Started Checkout", {
+      "Items": cartItems,
+      "ItemCount": cartItems.length,
+      "TotalPrice": totalPrice,
+      "PromoCode": "PROMO10"
+    });
+  }
+
+  function subscribe(email, source) {
+    if (!isConfigured()) return Promise.reject("Klaviyo not configured");
+    if (!KLAVIYO_CONFIG.listId) return Promise.reject("No listId configured");
+
+    var url = "https://a.klaviyo.com/client/subscriptions/?company_id=" + KLAVIYO_CONFIG.publicApiKey;
+
+    var body = {
+      data: {
+        type: "subscription",
+        attributes: {
+          profile: {
+            data: {
+              type: "profile",
+              attributes: { email: email }
+            }
+          },
+          custom_source: source || "Promo Landing Page"
+        },
+        relationships: {
+          list: {
+            data: { type: "list", id: KLAVIYO_CONFIG.listId }
+          }
+        }
+      }
+    };
+
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "revision": "2024-10-15"
+      },
+      body: JSON.stringify(body)
+    });
+  }
+
+  return {
+    isConfigured: isConfigured,
+    identify: identify,
+    track: track,
+    trackPageView: trackPageView,
+    trackAddToCart: trackAddToCart,
+    trackStartedCheckout: trackStartedCheckout,
+    subscribe: subscribe
+  };
+})();
+
+/**
  * CRAVE Meal Prep Co. — Promo Landing Page
  * 10 Meals for $9.99 Each — Meal Selection & Shopify Checkout
  */
@@ -420,10 +539,12 @@ var ShopifyCheckout = (function () {
     bindCategoryFilters();
     bindHeaderEvents();
     bindCheckoutEvents();
+    bindKlaviyoSignup();
     setMinDeliveryDate();
     animateOnScroll();
     startCountdown();
     initShopify();
+    initKlaviyo();
   }
 
   // ─── SHOPIFY INIT ──────────────────────────────────────────
@@ -431,6 +552,14 @@ var ShopifyCheckout = (function () {
     if (typeof ShopifyCheckout !== "undefined" && ShopifyCheckout.isConfigured()) {
       shopifyReady = true;
       console.log("[CRAVE] Shopify checkout ready — cart permalink mode");
+    }
+  }
+
+  // ─── KLAVIYO INIT ──────────────────────────────────────────
+  function initKlaviyo() {
+    if (typeof CraveKlaviyo !== "undefined" && CraveKlaviyo.isConfigured()) {
+      CraveKlaviyo.trackPageView();
+      console.log("[CRAVE] Klaviyo tracking active");
     }
   }
 
@@ -525,7 +654,12 @@ var ShopifyCheckout = (function () {
     updateUI();
 
     var meal = getMealById(mealId);
-    if (meal) showToast(meal.name + " added!");
+    if (meal) {
+      showToast(meal.name + " added!");
+      if (typeof CraveKlaviyo !== "undefined") {
+        CraveKlaviyo.trackAddToCart(meal, cart[mealId]);
+      }
+    }
 
     if (totalSelected === REQUIRED_MEALS) {
       setTimeout(function () {
@@ -740,6 +874,9 @@ var ShopifyCheckout = (function () {
       return;
     }
 
+    // Track checkout start in Klaviyo
+    trackCheckoutInKlaviyo();
+
     checkoutBtn.disabled = true;
     checkoutBtn.textContent = "Redirecting to checkout...";
     if (placeOrderBtn) {
@@ -808,8 +945,84 @@ var ShopifyCheckout = (function () {
         notes: document.getElementById("notes").value
       };
 
+      // Identify visitor and track order in Klaviyo
+      if (typeof CraveKlaviyo !== "undefined") {
+        CraveKlaviyo.identify(
+          orderData.customer.email,
+          document.getElementById("firstName").value,
+          document.getElementById("lastName").value,
+          orderData.customer.phone
+        );
+        CraveKlaviyo.track("Placed Order", {
+          "OrderId": orderData.orderId,
+          "Items": orderData.meals,
+          "TotalPrice": orderData.total
+        });
+      }
+
       console.log("ORDER PLACED (demo mode):", orderData);
     }, 1800);
+  }
+
+  // ─── KLAVIYO CHECKOUT TRACKING ────────────────────────────
+  function trackCheckoutInKlaviyo() {
+    if (typeof CraveKlaviyo === "undefined") return;
+    var items = Object.keys(cart).map(function (id) {
+      var meal = getMealById(id);
+      return {
+        ProductName: meal ? meal.name : id,
+        ProductID: id,
+        Quantity: cart[id],
+        Price: PROMO_PRICE
+      };
+    });
+    CraveKlaviyo.trackStartedCheckout(items, (totalSelected * PROMO_PRICE).toFixed(2));
+  }
+
+  // ─── KLAVIYO EMAIL SIGNUP ─────────────────────────────────
+  function bindKlaviyoSignup() {
+    var form = document.getElementById("klaviyoSignupForm");
+    if (!form) return;
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var emailInput = document.getElementById("signupEmail");
+      var noteEl = document.getElementById("signupNote");
+      var btn = document.getElementById("signupBtn");
+      var email = emailInput.value.trim();
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        noteEl.textContent = "Please enter a valid email address.";
+        noteEl.className = "signup-note signup-error";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Signing up...";
+
+      if (typeof CraveKlaviyo !== "undefined") {
+        CraveKlaviyo.identify(email);
+        CraveKlaviyo.track("Subscribed to Promo List", { "Source": "Promo Landing Page" });
+      }
+
+      if (typeof CraveKlaviyo !== "undefined" && CraveKlaviyo.isConfigured() && KLAVIYO_CONFIG.listId) {
+        CraveKlaviyo.subscribe(email).then(function () {
+          showSignupSuccess(emailInput, noteEl, btn);
+        }).catch(function () {
+          showSignupSuccess(emailInput, noteEl, btn);
+        });
+      } else {
+        showSignupSuccess(emailInput, noteEl, btn);
+      }
+    });
+  }
+
+  function showSignupSuccess(emailInput, noteEl, btn) {
+    emailInput.value = "";
+    emailInput.disabled = true;
+    btn.textContent = "Signed Up!";
+    noteEl.textContent = "You're on the list! Watch your inbox for exclusive deals.";
+    noteEl.className = "signup-note signup-success";
   }
 
   // ─── DELIVERY DATE ─────────────────────────────────────────

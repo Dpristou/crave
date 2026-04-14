@@ -17,6 +17,8 @@
 {% endcomment %}
 
 {{ 'promo.css' | asset_url | stylesheet_tag }}
+<!-- Klaviyo Onsite Tracking SDK -->
+<script async type="text/javascript" src="https://static.klaviyo.com/onsite/js/klaviyo.js?company_id=YOUR_KLAVIYO_PUBLIC_API_KEY"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -340,6 +342,23 @@
           <strong>Secure Checkout</strong>
           <span>256-bit Encrypted</span>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EMAIL SIGNUP (Klaviyo) -->
+  <section class="email-signup" id="email-signup">
+    <div class="container">
+      <div class="signup-card">
+        <h2>Get Exclusive Deals & Menu Updates</h2>
+        <p>Join the CRAVE list for early access to promos, new menu drops, and members-only pricing.</p>
+        <form class="signup-form" id="klaviyoSignupForm">
+          <div class="signup-input-row">
+            <input type="email" id="signupEmail" placeholder="Enter your email" required>
+            <button type="submit" class="btn btn-primary" id="signupBtn">Sign Up</button>
+          </div>
+          <p class="signup-note" id="signupNote">No spam, ever. Unsubscribe anytime.</p>
+        </form>
       </div>
     </div>
   </section>

@@ -44,10 +44,12 @@
     bindCategoryFilters();
     bindHeaderEvents();
     bindCheckoutEvents();
+    bindKlaviyoSignup();
     setMinDeliveryDate();
     animateOnScroll();
     startCountdown();
     initShopify();
+    initKlaviyo();
   }
 
   // ─── SHOPIFY INIT ──────────────────────────────────────────
@@ -55,6 +57,14 @@
     if (typeof ShopifyCheckout !== "undefined" && ShopifyCheckout.isConfigured()) {
       shopifyReady = true;
       console.log("[CRAVE] Shopify checkout ready — cart permalink mode");
+    }
+  }
+
+  // ─── KLAVIYO INIT ──────────────────────────────────────────
+  function initKlaviyo() {
+    if (typeof CraveKlaviyo !== "undefined" && CraveKlaviyo.isConfigured()) {
+      CraveKlaviyo.trackPageView();
+      console.log("[CRAVE] Klaviyo tracking active");
     }
   }
 
@@ -149,7 +159,12 @@
     updateUI();
 
     var meal = getMealById(mealId);
-    if (meal) showToast(meal.name + " added!");
+    if (meal) {
+      showToast(meal.name + " added!");
+      if (typeof CraveKlaviyo !== "undefined") {
+        CraveKlaviyo.trackAddToCart(meal, cart[mealId]);
+      }
+    }
 
     if (totalSelected === REQUIRED_MEALS) {
       setTimeout(function () {
@@ -362,6 +377,9 @@
       return;
     }
 
+    // Track checkout start in Klaviyo
+    trackCheckoutInKlaviyo();
+
     checkoutBtn.disabled = true;
     checkoutBtn.textContent = "Redirecting to checkout...";
     if (placeOrderBtn) {
@@ -430,8 +448,87 @@
         notes: document.getElementById("notes").value
       };
 
+      // Identify visitor and track order in Klaviyo
+      if (typeof CraveKlaviyo !== "undefined") {
+        CraveKlaviyo.identify(
+          orderData.customer.email,
+          document.getElementById("firstName").value,
+          document.getElementById("lastName").value,
+          orderData.customer.phone
+        );
+        CraveKlaviyo.track("Placed Order", {
+          "OrderId": orderData.orderId,
+          "Items": orderData.meals,
+          "TotalPrice": orderData.total
+        });
+      }
+
       console.log("ORDER PLACED (demo mode):", orderData);
     }, 1800);
+  }
+
+  // ─── KLAVIYO CHECKOUT TRACKING ────────────────────────────
+  function trackCheckoutInKlaviyo() {
+    if (typeof CraveKlaviyo === "undefined") return;
+    var items = Object.keys(cart).map(function (id) {
+      var meal = getMealById(id);
+      return {
+        ProductName: meal ? meal.name : id,
+        ProductID: id,
+        Quantity: cart[id],
+        Price: PROMO_PRICE
+      };
+    });
+    CraveKlaviyo.trackStartedCheckout(items, (totalSelected * PROMO_PRICE).toFixed(2));
+  }
+
+  // ─── KLAVIYO EMAIL SIGNUP ─────────────────────────────────
+  function bindKlaviyoSignup() {
+    var form = document.getElementById("klaviyoSignupForm");
+    if (!form) return;
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var emailInput = document.getElementById("signupEmail");
+      var noteEl = document.getElementById("signupNote");
+      var btn = document.getElementById("signupBtn");
+      var email = emailInput.value.trim();
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        noteEl.textContent = "Please enter a valid email address.";
+        noteEl.className = "signup-note signup-error";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Signing up...";
+
+      // Identify the visitor in Klaviyo
+      if (typeof CraveKlaviyo !== "undefined") {
+        CraveKlaviyo.identify(email);
+        CraveKlaviyo.track("Subscribed to Promo List", { "Source": "Promo Landing Page" });
+      }
+
+      // Subscribe to list via Klaviyo Client API
+      if (typeof CraveKlaviyo !== "undefined" && CraveKlaviyo.isConfigured() && KLAVIYO_CONFIG.listId) {
+        CraveKlaviyo.subscribe(email).then(function () {
+          showSignupSuccess(emailInput, noteEl, btn);
+        }).catch(function () {
+          // Even if the API call fails, the identify call above still works
+          showSignupSuccess(emailInput, noteEl, btn);
+        });
+      } else {
+        showSignupSuccess(emailInput, noteEl, btn);
+      }
+    });
+  }
+
+  function showSignupSuccess(emailInput, noteEl, btn) {
+    emailInput.value = "";
+    emailInput.disabled = true;
+    btn.textContent = "Signed Up!";
+    noteEl.textContent = "You're on the list! Watch your inbox for exclusive deals.";
+    noteEl.className = "signup-note signup-success";
   }
 
   // ─── DELIVERY DATE ─────────────────────────────────────────
